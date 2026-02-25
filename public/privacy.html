@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Chisato TikTok Downloader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #8B5CF6, #EC4899);
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 30px -10px rgba(139, 92, 246, 0.4);
+        }
+
+        .logo span {
+            font-size: 36px;
+            color: white;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 42px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .last-updated {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Main Card */
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 32px;
+            padding: 48px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #F3F4F6;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8B5CF6, #EC4899);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .section-content {
+            padding-left: 52px;
+        }
+
+        .section-content p {
+            color: #4B5563;
+            font-size: 16px;
+            margin-bottom: 16px;
+            line-height: 1.7;
+        }
+
+        .section-content ul {
+            list-style: none;
+            margin-bottom: 16px;
+        }
+
+        .section-content li {
+            color: #4B5563;
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-content li::before {
+            content: "•";
+            color: #8B5CF6;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .data-table th {
+            background: #8B5CF6;
+            color: white;
+            font-weight: 600;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .data-table td {
+            padding: 12px;
+            background: white;
+            color: #4B5563;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table td:first-child {
+            font-weight: 500;
+        }
+
+        /* Highlight Box */
+        .highlight {
+            background: linear-gradient(135deg, #e8f4ff, #e8ffe8);
+            padding: 24px;
+            border-radius: 16px;
+            margin: 24px 0;
+            border-left: 4px solid #10b981;
+        }
+
+        .highlight p {
+            color: #1F2937;
+            font-weight: 500;
+            margin-bottom: 0;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
+
+        .footer a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #E5E7EB;
+            margin: 30px 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            body {
+                padding: 20px;
+            }
+
+            .card {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .section-title {
+                font-size: 20px;
+            }
+
+            .section-content {
+                padding-left: 0;
+            }
+
+            .data-table {
+                font-size: 14px;
+            }
+
+            .data-table td, .data-table th {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <span>🔒</span>
+            </div>
+            <h1>Privacy Policy</h1>
+            <p class="last-updated">Terakhir diperbarui: 25 Februari 2026</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <!-- Section 1 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">🎯</div>
+                    <h2>1. Pendahuluan</h2>
+                </div>
+                <div class="section-content">
+                    <p>Privasi Anda penting bagi kami. Kebijakan Privasi ini menjelaskan bagaimana Chisato TikTok Downloader ("Kami") mengumpulkan, menggunakan, dan melindungi informasi Anda.</p>
+                </div>
+            </div>
+
+            <!-- Highlight Box -->
+            <div class="highlight">
+                <p><strong>Intinya:</strong> Kami tidak mengumpulkan data pribadi Anda. Semua proses download terjadi langsung antara browser Anda dan server TikTok.</p>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">📊</div>
+                    <h2>2. Informasi yang Kami Kumpulkan</h2>
+                </div>
+                <div class="section-content">
+                    <p>Kami mengumpulkan informasi minimal untuk meningkatkan layanan:</p>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tipe Data</th>
+                                <th>Dikumpulkan?</th>
+                                <th>Tujuan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Alamat IP</td>
+                                <td>✅ Ya (sementara)</td>
+                                <td>Mencegah penyalahgunaan</td>
+                            </tr>
+                            <tr>
+                                <td>Cookie Fungsional</td>
+                                <td>✅ Ya</td>
+                                <td>Menyimpan preferensi dark mode</td>
+                            </tr>
+                            <tr>
+                                <td>Data Pribadi (Nama, Email)</td>
+                                <td>❌ Tidak</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Riwayat Download</td>
+                                <td>❌ Tidak</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>Video yang Didownload</td>
+                                <td>❌ Tidak</td>
+                                <td>-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 3 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">🍪</div>
+                    <h2>3. Penggunaan Cookie</h2>
+                </div>
+                <div class="section-content">
+                    <p>Kami menggunakan cookie untuk:</p>
+                    <ul>
+                        <li>Menyimpan preferensi dark mode</li>
+                        <li>Meningkatkan pengalaman pengguna</li>
+                        <li>Analitik dasar (jumlah pengunjung)</li>
+                    </ul>
+                    <p>Anda dapat menonaktifkan cookie melalui pengaturan browser.</p>
+                </div>
+            </div>
+
+            <!-- Section 4 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">🔄</div>
+                    <h2>4. Proses Data</h2>
+                </div>
+                <div class="section-content">
+                    <p>Yang terjadi saat Anda menggunakan Chisato:</p>
+                    <ol style="margin-left: 20px; color: #4B5563;">
+                        <li>Anda memasukkan link TikTok</li>
+                        <li>Browser mengirim permintaan ke server TikTok via API</li>
+                        <li>Server TikTok mengirim video ke browser Anda</li>
+                        <li>Browser Anda mendownload video</li>
+                        <li><strong>KAMI TIDAK MENYIMPAN VIDEO</strong> - semuanya langsung</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">🔐</div>
+                    <h2>5. Keamanan Data</h2>
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li>HTTPS/SSL enkripsi untuk semua koneksi</li>
+                        <li>Tidak menyimpan data sensitif</li>
+                        <li>Update keamanan rutin</li>
+                        <li>Monitoring 24/7 untuk ancaman</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">👥</div>
+                    <h2>6. Berbagi Data</h2>
+                </div>
+                <div class="section-content">
+                    <p>Kami TIDAK pernah menjual atau membagikan data Anda dengan pihak ketiga, kecuali:</p>
+                    <ul>
+                        <li>Jika diwajibkan hukum</li>
+                        <li>Untuk melindungi hak dan keamanan kami</li>
+                        <li>Dengan penyedia layanan analitik anonim</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">🌍</div>
+                    <h2>7. Hak Privasi Anda</h2>
+                </div>
+                <div class="section-content">
+                    <p>Anda memiliki hak untuk:</p>
+                    <ul>
+                        <li>Mengakses data yang kami simpan (minimal)</li>
+                        <li>Meminta penghapusan data</li>
+                        <li>Menolak pengumpulan data</li>
+                        <li>Menggunakan layanan secara anonim</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8 -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">📞</div>
+                    <h2>8. Hubungi Kami</h2>
+                </div>
+                <div class="section-content">
+                    <p>Jika ada pertanyaan:</p>
+                    <ul>
+                       <li>📧 Email: kylueskyc@gmail.com</li>
+                        <li>🐦 Twitter: @1kKyluesky</li>
+                        <li>💬 Discord: lyoraaa_</li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Summary -->
+            <div class="section">
+                <div class="section-content">
+                    <p style="background: #F3F4F6; padding: 20px; border-radius: 12px; font-size: 14px; margin-bottom: 0;">
+                        <strong>Ringkasan:</strong> Chisato TikTok Downloader menghormati privasi Anda. Kami tidak mengumpulkan data pribadi, tidak menyimpan video, dan tidak melacak aktivitas Anda. Privasi Anda adalah prioritas kami. 🔒
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <a href="/">Home</a> •
+            <a href="/terms.html">Terms</a> •
+            <a href="/privacy.html">Privacy</a> •
+            <a href="/#contact">Contact</a>
+            <p style="margin-top: 20px;">© 2026 Chisato TikTok Downloader. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
