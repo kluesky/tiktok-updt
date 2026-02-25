@@ -4,7 +4,7 @@ import {
   Music, Video, Copy, Loader2, 
   ChevronDown, Heart, Share2, Clock, Eye,
   MessageCircle, Sparkles, Zap, Shield, Globe, CheckCircle,
-  X, ChevronRight, Moon, Sun
+  X, ChevronRight, Moon, Sun, Image
 } from 'lucide-react';
 
 // Interface untuk data TikTok
@@ -41,6 +41,11 @@ function App() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [quality, setQuality] = useState<'sd' | 'hd'>('hd');
   const [recentDownloads, setRecentDownloads] = useState<string[]>([]);
+  
+  // State untuk modal slide
+  const [showSlideModal, setShowSlideModal] = useState(false);
+  const [slideSelection, setSlideSelection] = useState('all');
+  const [totalSlides, setTotalSlides] = useState(0);
   
   // Refs
   const resultRef = useRef<HTMLDivElement>(null);
@@ -113,7 +118,7 @@ function App() {
         inputRef.current.value = text;
         inputRef.current.focus();
       }
-      setSuccess('Link berhasil ditempel!');
+      setSuccess('✅ Link berhasil ditempel!');
     } catch (err) {
       // Fallback manual paste
       const pastedText = prompt('Tempel link TikTok di sini:');
@@ -245,6 +250,80 @@ function App() {
       setSuccess('✅ MP3 berhasil diunduh!');
     } catch (error) {
       setError('❌ Gagal mengunduh MP3');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  // Handle download slide dengan pilihan
+  const handleSlideDownload = async (selection: string, images: string[], author?: string) => {
+    try {
+      setDownloading('mp3'); // Reuse loading state
+      
+      // Parse pilihan user
+      let selectedIndices: number[] = [];
+      
+      if (selection.toLowerCase() === 'all' || selection === '') {
+        // Download semua
+        selectedIndices = images.map((_, i) => i);
+      } else {
+        // Parse format seperti "1,3,5" atau "1-5"
+        const parts = selection.split(',');
+        
+        for (const part of parts) {
+          if (part.includes('-')) {
+            // Format range: 1-5
+            const [start, end] = part.split('-').map(Number);
+            for (let i = start; i <= end; i++) {
+              if (i >= 1 && i <= images.length) {
+                selectedIndices.push(i - 1);
+              }
+            }
+          } else {
+            // Format angka biasa
+            const num = Number(part);
+            if (num >= 1 && num <= images.length) {
+              selectedIndices.push(num - 1);
+            }
+          }
+        }
+      }
+      
+      // Hapus duplikat dan urutkan
+      selectedIndices = [...new Set(selectedIndices)].sort((a, b) => a - b);
+      
+      if (selectedIndices.length === 0) {
+        setError('❌ Tidak ada slide yang dipilih');
+        setDownloading(null);
+        return;
+      }
+      
+      // Download slide yang dipilih
+      for (let i = 0; i < selectedIndices.length; i++) {
+        const idx = selectedIndices[i];
+        const imageUrl = images[idx];
+        const filename = `${generateFilename(author)}_slide_${idx + 1}.jpg`;
+        
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(blobUrl);
+        
+        // Kasih jeda biar gak overload
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      setSuccess(`✅ ${selectedIndices.length} slide berhasil diunduh!`);
+    } catch (error) {
+      setError('❌ Gagal mengunduh slide');
     } finally {
       setDownloading(null);
     }
@@ -684,11 +763,264 @@ function App() {
                       <span>Download MP3</span>
                     </button>
                   )}
+
+                  {/* SLIDE DOWNLOAD BUTTON - Pilih slide yang akan didownload */}
+                  {videoData.images && videoData.images.length > 0 ? (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          setTotalSlides(videoData.images.length);
+                          setSlideSelection('all');
+                          setShowSlideModal(true);
+                        }}
+                        disabled={downloading === 'mp3'}
+                        className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
+                          darkMode
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {downloading === 'mp3' ? (
+                          <Loader2 size={20} className="animate-spin" />
+                        ) : (
+                          <Image size={20} />
+                        )}
+                        <span>Pilih Slide ({videoData.images.length} foto)</span>
+                      </button>
+                      
+                      {/* Info cara pilih */}
+                      <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                        💡 Klik untuk memilih slide (contoh: 1,3,5 atau 1-5)
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      disabled
+                      className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 opacity-50 cursor-not-allowed ${
+                        darkMode
+                          ? 'bg-gray-700 text-gray-400'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      <Image size={20} />
+                      <span>Slide Tidak Tersedia</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* Custom Modal untuk Pilih Slide - Glassmorphism ala iPhone */}
+        {showSlideModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop dengan blur ala iOS */}
+            <div 
+              className="absolute inset-0 bg-black/20 backdrop-blur-md"
+              onClick={() => setShowSlideModal(false)}
+            ></div>
+            
+            {/* Modal Card - Glassmorphism */}
+            <div className={`relative w-full max-w-md rounded-3xl shadow-2xl transform transition-all animate-scale-in
+              ${darkMode 
+                ? 'bg-gray-900/80 backdrop-blur-xl border border-white/10' 
+                : 'bg-white/80 backdrop-blur-xl border border-white/20'
+              }`}
+              style={{
+                boxShadow: darkMode 
+                  ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset'
+                  : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.5) inset'
+              }}
+            >
+              {/* Header Modal - Glass */}
+              <div className={`p-6 border-b ${
+                darkMode ? 'border-white/10' : 'border-white/30'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Icon dengan efek glass */}
+                    <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center
+                      ${darkMode 
+                        ? 'bg-blue-500/20 border border-white/10' 
+                        : 'bg-blue-500/10 border border-white/30'
+                      }`}
+                      style={{
+                        backdropFilter: 'blur(8px)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      <Image className="text-blue-500" size={24} />
+                    </div>
+                    <div>
+                      <h3 className={`font-semibold text-lg ${
+                        darkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        Pilih Slide
+                      </h3>
+                      <p className={`text-sm ${
+                        darkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        Total {totalSlides} foto tersedia
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowSlideModal(false)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all
+                      ${darkMode 
+                        ? 'bg-white/10 text-gray-400 hover:bg-white/20' 
+                        : 'bg-black/5 text-gray-500 hover:bg-black/10'
+                      }`}
+                    style={{ backdropFilter: 'blur(8px)' }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body Modal */}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Nomor Slide
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={slideSelection}
+                      onChange={(e) => setSlideSelection(e.target.value)}
+                      placeholder="Contoh: 1,3,5 atau 1-5 atau all"
+                      className={`w-full px-4 py-3 rounded-xl border transition-all outline-none
+                        ${darkMode 
+                          ? 'bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-blue-500/50' 
+                          : 'bg-white/50 border-white/30 text-gray-900 placeholder-gray-400 focus:border-blue-500/50'
+                        }`}
+                      style={{
+                        backdropFilter: 'blur(8px)',
+                        boxShadow: darkMode 
+                          ? '0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset'
+                          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.5) inset'
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Options - Glass buttons */}
+                <div>
+                  <p className={`text-xs mb-2 ${
+                    darkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Pilihan cepat:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['all', '1-5', '1,3,5', '1-10'].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setSlideSelection(opt)}
+                        className={`px-3 py-1.5 text-xs rounded-lg transition-all
+                          ${slideSelection === opt
+                            ? 'bg-blue-500 text-white border border-white/20'
+                            : darkMode
+                              ? 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/5'
+                              : 'bg-white/50 text-gray-600 hover:bg-white/70 border border-white/30'
+                          }`}
+                        style={{ backdropFilter: 'blur(8px)' }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Info Format - Glass card */}
+                <div className={`p-4 rounded-xl ${
+                  darkMode 
+                    ? 'bg-white/5 border border-white/10' 
+                    : 'bg-white/30 border border-white/30'
+                }`}
+                style={{ backdropFilter: 'blur(8px)' }}>
+                  <p className={`text-xs ${
+                    darkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
+                    <span className="font-semibold">📋 Format:</span><br />
+                    • <span className="font-mono">all</span> - Download semua slide<br />
+                    • <span className="font-mono">1,3,5</span> - Slide 1, 3, dan 5<br />
+                    • <span className="font-mono">1-5</span> - Slide 1 sampai 5<br />
+                    • <span className="font-mono">1,3,5-7</span> - Kombinasi (1,3,5,6,7)
+                  </p>
+                </div>
+
+                {/* Preview slide numbers (opsional) */}
+                <div className={`flex flex-wrap gap-1 p-2 rounded-xl ${
+                  darkMode ? 'bg-white/5' : 'bg-white/30'
+                }`}>
+                  {Array.from({ length: Math.min(totalSlides, 10) }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const current = slideSelection === 'all' ? '' : slideSelection;
+                        const newSelection = current ? `${current},${i+1}` : `${i+1}`;
+                        setSlideSelection(newSelection);
+                      }}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                        darkMode
+                          ? 'bg-white/10 text-gray-300 hover:bg-white/20'
+                          : 'bg-white/50 text-gray-600 hover:bg-white/70'
+                      }`}
+                    >
+                      {i+1}
+                    </button>
+                  ))}
+                  {totalSlides > 10 && (
+                    <span className={`text-xs px-2 flex items-center ${
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      +{totalSlides - 10}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Modal - Glass */}
+              <div className={`p-6 border-t flex gap-3 ${
+                darkMode ? 'border-white/10' : 'border-white/30'
+              }`}>
+                <button
+                  onClick={() => setShowSlideModal(false)}
+                  className={`flex-1 py-3 rounded-xl font-medium transition-all
+                    ${darkMode 
+                      ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5' 
+                      : 'bg-black/5 text-gray-700 hover:bg-black/10 border border-white/30'
+                    }`}
+                  style={{ backdropFilter: 'blur(8px)' }}
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSlideModal(false);
+                    if (videoData?.images) {
+                      handleSlideDownload(slideSelection, videoData.images, videoData.author?.nickname);
+                    }
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-medium transition-all relative overflow-hidden group
+                    ${darkMode
+                      ? 'bg-blue-500/80 text-white hover:bg-blue-500'
+                      : 'bg-blue-500/80 text-white hover:bg-blue-500'
+                    }`}
+                  style={{ backdropFilter: 'blur(8px)' }}
+                >
+                  <span className="relative z-10">Download</span>
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Features Grid */}
         <div id="features" className="max-w-5xl mx-auto mt-20">
