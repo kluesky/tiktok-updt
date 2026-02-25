@@ -387,7 +387,7 @@ function App() {
                       type="text"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://www.tiktok.com/@username/video/123456789"
+                      placeholder="Paste a TikTok video URL here..."
                       className={`w-full px-6 py-4 pr-36 text-lg rounded-2xl border-2 transition-all outline-none ${
                         darkMode
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-slate-400 focus:border-purple-500'
