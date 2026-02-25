@@ -32,7 +32,9 @@ function App() {
   // State management
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState<'video' | 'mp3' | null>(null);
+  const [downloadingVideo, setDownloadingVideo] = useState(false);
+  const [downloadingMp3, setDownloadingMp3] = useState(false);
+  const [downloadingSlide, setDownloadingSlide] = useState(false);
   const [videoData, setVideoData] = useState<TikTokData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,24 +42,18 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [quality, setQuality] = useState<'sd' | 'hd'>('hd');
-  const [recentDownloads, setRecentDownloads] = useState<string[]>([]);
   
   // State untuk modal slide
   const [showSlideModal, setShowSlideModal] = useState(false);
   const [slideSelection, setSlideSelection] = useState('all');
   const [totalSlides, setTotalSlides] = useState(0);
   
+  // State untuk info banner
+  const [showInfoBanner, setShowInfoBanner] = useState(true);
+  
   // Refs
   const resultRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Load recent downloads from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('recentDownloads');
-    if (saved) {
-      setRecentDownloads(JSON.parse(saved));
-    }
-  }, []);
 
   // Scroll to result when data is loaded
   useEffect(() => {
@@ -101,7 +97,7 @@ function App() {
     });
   };
 
-  // Generate random filename (masih dipakai untuk download)
+  // Generate random filename
   const generateFilename = (author?: string): string => {
     const date = new Date();
     const random = Math.floor(Math.random() * 10000);
@@ -118,9 +114,8 @@ function App() {
         inputRef.current.value = text;
         inputRef.current.focus();
       }
-      setSuccess('Link berhasil ditempel!');
+      setSuccess('✅ Link berhasil ditempel!');
     } catch (err) {
-      // Fallback manual paste
       const pastedText = prompt('Tempel link TikTok di sini:');
       if (pastedText) {
         setUrl(pastedText);
@@ -148,32 +143,162 @@ function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Fetch TikTok data from API
+  // Fetch TikTok data dengan multi-API fallback
   const fetchTikTokData = async (url: string): Promise<TikTokData> => {
-    const response = await fetch(`https://tikwm.com/api/?url=${encodeURIComponent(url)}&hd=${quality === 'hd' ? 1 : 0}`);
-    
-    if (!response.ok) {
-      throw new Error('Gagal mengambil data dari server');
+    const apis = [
+      {
+        name: 'TikWM',
+        url: `https://tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`,
+        parser: (data: any) => ({
+          play: data.data.play,
+          hdplay: data.data.hdplay || data.data.play,
+          music: data.data.music,
+          author: {
+            nickname: data.data.author.nickname,
+            unique_id: data.data.author.unique_id,
+            avatar: data.data.author.avatar
+          },
+          title: data.data.title,
+          images: data.data.images,
+          digg_count: data.data.digg_count,
+          play_count: data.data.play_count,
+          comment_count: data.data.comment_count,
+          share_count: data.data.share_count,
+          duration: data.data.duration,
+          create_time: data.data.create_time,
+          region: data.data.region
+        })
+      },
+      {
+        name: 'TikMate',
+        url: `https://api.tikmate.io/api/tiktok?url=${encodeURIComponent(url)}`,
+        parser: (data: any) => ({
+          play: data.video_url,
+          hdplay: data.video_url_hd || data.video_url,
+          music: data.audio_url,
+          author: {
+            nickname: data.author_name,
+            unique_id: data.author_username,
+            avatar: data.author_avatar
+          },
+          title: data.title,
+          images: data.images,
+          digg_count: data.like_count,
+          play_count: data.view_count,
+          comment_count: data.comment_count,
+          share_count: data.share_count,
+          duration: data.duration,
+          create_time: data.create_time,
+          region: data.region
+        })
+      },
+      {
+        name: 'SnapTik',
+        url: `https://api.snaptik.app/video?url=${encodeURIComponent(url)}`,
+        parser: (data: any) => ({
+          play: data.video,
+          hdplay: data.video_hd || data.video,
+          music: data.audio,
+          author: {
+            nickname: data.author.name,
+            unique_id: data.author.username,
+            avatar: data.author.avatar
+          },
+          title: data.title,
+          images: data.images,
+          digg_count: data.stats?.likes,
+          play_count: data.stats?.views,
+          comment_count: data.stats?.comments,
+          share_count: data.stats?.shares,
+          duration: data.duration,
+          create_time: data.create_time,
+          region: data.region
+        })
+      }
+    ];
+
+    // Coba API satu per satu
+    for (const api of apis) {
+      try {
+        console.log(`🔄 Mencoba API: ${api.name}...`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(api.url, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Validasi data
+        if (!data || (api.name === 'TikWM' && data.code !== 0)) {
+          throw new Error('Data tidak valid');
+        }
+
+        const parsedData = api.parser(data);
+        
+        // Validasi URL video
+        if (!parsedData.play && !parsedData.hdplay) {
+          throw new Error('Tidak ada URL video');
+        }
+
+        console.log(`✅ API ${api.name} berhasil!`);
+        return parsedData;
+        
+      } catch (error) {
+        console.warn(`⚠️ API ${api.name} gagal:`, error);
+        // Lanjut ke API berikutnya
+      }
     }
 
-    const data = await response.json();
-    
-    if (data.code !== 0) {
-      throw new Error(data.msg || 'Terjadi kesalahan');
-    }
-
-    return data.data;
+    throw new Error('Semua API gagal. Coba lagi nanti');
   };
 
   // Download file helper
-  const downloadFile = async (url: string, filename: string): Promise<void> => {
+  const downloadFile = async (url: string, filename: string, expectedType: 'video' | 'audio' | 'image' = 'video'): Promise<void> => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Gagal mengunduh file');
+      console.log(`📥 Downloading from: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'video/mp4, video/webm, video/*, audio/*, image/*, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Range': 'bytes=0-'
+        }
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      console.log('📦 Content-Type:', contentType);
+      console.log('📏 Content-Length:', contentLength, 'bytes');
       
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
       
+      // Validasi ukuran file
+      if (blob.size < 1024) { // Kurang dari 1KB
+        throw new Error('File terlalu kecil');
+      }
+      
+      // Validasi tipe file
+      if (expectedType === 'video' && blob.type.includes('audio')) {
+        throw new Error('Server mengirim audio, bukan video');
+      }
+      
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = filename;
@@ -181,16 +306,11 @@ function App() {
       link.click();
       document.body.removeChild(link);
       
-      // Clean up
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-
-      // Save to recent downloads
-      const newRecent = [url, ...recentDownloads.slice(0, 4)];
-      setRecentDownloads(newRecent);
-      localStorage.setItem('recentDownloads', JSON.stringify(newRecent));
       
     } catch (error) {
-      throw new Error('Gagal mengunduh file');
+      console.error('Download error:', error);
+      throw error;
     }
   };
 
@@ -218,22 +338,73 @@ function App() {
     }
   };
 
-  // Handle download video
+  // Handle download video dengan validasi
   const handleDownloadVideo = async () => {
-    if (!videoData?.play) return;
+    if (!videoData?.play && !videoData?.hdplay) return;
 
-    setDownloading('video');
+    setDownloadingVideo(true);
     setError(null);
 
     try {
       const filename = generateFilename(videoData.author?.nickname) + '.mp4';
-      const videoUrl = quality === 'hd' && videoData.hdplay ? videoData.hdplay : videoData.play;
-      await downloadFile(videoUrl, filename);
+      let videoUrl = quality === 'hd' && videoData.hdplay ? videoData.hdplay : videoData.play;
+      
+      console.log('🎥 Mencoba download video dari:', videoUrl);
+      
+      // Cek tipe konten sebelum download
+      try {
+        const headResponse = await fetch(videoUrl, { 
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        const contentType = headResponse.headers.get('content-type');
+        const contentLength = headResponse.headers.get('content-length');
+        
+        console.log('📦 Content-Type:', contentType);
+        console.log('📏 Content-Length:', contentLength, 'bytes');
+        
+        // Kalau content-type audio, coba pake API lain
+        if (contentType?.includes('audio') || (contentLength && parseInt(contentLength) < 50000)) {
+          console.warn('⚠️ Video URL mengembalikan audio/file kecil, mencoba refresh data...');
+          
+          // Refresh data dari API
+          const freshData = await fetchTikTokData(url);
+          setVideoData(freshData);
+          
+          // Coba lagi dengan data baru
+          videoUrl = quality === 'hd' && freshData.hdplay ? freshData.hdplay : freshData.play;
+        }
+      } catch (headError) {
+        console.warn('HEAD request gagal, lanjut download:', headError);
+      }
+      
+      // Download dengan validasi
+      await downloadFile(videoUrl, filename, 'video');
+      
       setSuccess('✅ Video berhasil diunduh!');
     } catch (error) {
-      setError('❌ Gagal mengunduh video');
+      console.error('❌ Download error:', error);
+      
+      // Coba alternatif URL
+      if (quality === 'hd' && videoData.play) {
+        try {
+          console.log('🔄 Mencoba dengan URL SD...');
+          const filename = generateFilename(videoData.author?.nickname) + '.mp4';
+          await downloadFile(videoData.play, filename, 'video');
+          setSuccess('✅ Video berhasil diunduh (SD)!');
+          setDownloadingVideo(false);
+          return;
+        } catch (sdError) {
+          console.error('SD juga gagal:', sdError);
+        }
+      }
+      
+      setError('❌ Gagal mengunduh video. Silahkan gunakan tombol download manual di pojok kanan bawah video.');
     } finally {
-      setDownloading(null);
+      setDownloadingVideo(false);
     }
   };
 
@@ -241,38 +412,34 @@ function App() {
   const handleDownloadMP3 = async () => {
     if (!videoData?.music) return;
 
-    setDownloading('mp3');
+    setDownloadingMp3(true);
     setError(null);
 
     try {
       const filename = generateFilename(videoData.author?.nickname) + '.mp3';
-      await downloadFile(videoData.music, filename);
+      await downloadFile(videoData.music, filename, 'audio');
       setSuccess('✅ MP3 berhasil diunduh!');
     } catch (error) {
       setError('❌ Gagal mengunduh MP3');
     } finally {
-      setDownloading(null);
+      setDownloadingMp3(false);
     }
   };
 
   // Handle download slide dengan pilihan
   const handleSlideDownload = async (selection: string, images: string[], author?: string) => {
     try {
-      setDownloading('mp3'); // Reuse loading state
+      setDownloadingSlide(true);
       
-      // Parse pilihan user
       let selectedIndices: number[] = [];
       
       if (selection.toLowerCase() === 'all' || selection === '') {
-        // Download semua
         selectedIndices = images.map((_, i) => i);
       } else {
-        // Parse format seperti "1,3,5" atau "1-5"
         const parts = selection.split(',');
         
         for (const part of parts) {
           if (part.includes('-')) {
-            // Format range: 1-5
             const [start, end] = part.split('-').map(Number);
             for (let i = start; i <= end; i++) {
               if (i >= 1 && i <= images.length) {
@@ -280,7 +447,6 @@ function App() {
               }
             }
           } else {
-            // Format angka biasa
             const num = Number(part);
             if (num >= 1 && num <= images.length) {
               selectedIndices.push(num - 1);
@@ -289,33 +455,20 @@ function App() {
         }
       }
       
-      // Hapus duplikat dan urutkan
       selectedIndices = [...new Set(selectedIndices)].sort((a, b) => a - b);
       
       if (selectedIndices.length === 0) {
         setError('❌ Tidak ada slide yang dipilih');
-        setDownloading(null);
+        setDownloadingSlide(false);
         return;
       }
       
-      // Download slide yang dipilih
       for (let i = 0; i < selectedIndices.length; i++) {
         const idx = selectedIndices[i];
         const imageUrl = images[idx];
         const filename = `${generateFilename(author)}_slide_${idx + 1}.jpg`;
         
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        URL.revokeObjectURL(blobUrl);
+        await downloadFile(imageUrl, filename, 'image');
         
         // Kasih jeda biar gak overload
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -325,7 +478,7 @@ function App() {
     } catch (error) {
       setError('❌ Gagal mengunduh slide');
     } finally {
-      setDownloading(null);
+      setDownloadingSlide(false);
     }
   };
 
@@ -416,6 +569,105 @@ function App() {
 
       {/* Main Content */}
       <main className="relative container mx-auto px-6 py-16">
+        
+       {/* INFO BANNER - FULL WIDTH */}
+{showInfoBanner && (
+  <div className="max-w-4xl mx-auto mb-8 animate-slide-down">
+    <div className="relative group">
+      {/* Background glow */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-30"></div>
+      
+      {/* Main banner card */}
+      <div className={`relative rounded-2xl shadow-2xl overflow-hidden ${
+        darkMode 
+          ? 'bg-gray-800/95 backdrop-blur-xl border border-gray-700/50' 
+          : 'bg-white/95 backdrop-blur-xl border border-white/20'
+      }`}>
+        
+        {/* Gradient top bar */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500"></div>
+        
+        {/* Close button */}
+        <button 
+          onClick={() => setShowInfoBanner(false)}
+          className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ${
+            darkMode 
+              ? 'bg-gray-700/80 text-gray-300 hover:bg-gray-600 hover:text-white' 
+              : 'bg-gray-100/80 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+          }`}
+        >
+          <X size={16} />
+        </button>
+        
+        {/* Content */}
+        <div className="p-6 md:p-8">
+          <div className="flex flex-col md:flex-row items-start gap-5">
+            
+            {/* Icon */}
+            <div className="relative flex-shrink-0 mx-auto md:mx-0">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-md opacity-60"></div>
+              <div className={`relative w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-3xl md:text-4xl ${
+                darkMode
+                  ? 'bg-gray-900/80 border border-gray-700'
+                  : 'bg-white/80 border border-white/50'
+              }`}>
+                <span className="filter drop-shadow-lg">️🚨</span>
+              </div>
+            </div>
+            
+            {/* Text content */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="flex flex-col md:flex-row items-center gap-3 mb-3">
+                <h3 className={`font-bold text-xl md:text-2xl ${
+                  darkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Informasi Penting
+                </h3>
+                <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                  darkMode 
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                    : 'bg-green-100 text-green-600 border border-green-200'
+                }`}>
+                  UPDATE
+                </span>
+              </div>
+              
+              <p className={`text-base md:text-lg leading-relaxed max-w-3xl ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                ✅ <span className="font-semibold text-green-600 dark:text-green-400">Mode SD (Standard) sudah work normal!</span> Jika mengalami kendala dengan video HD, silahkan gunakan mode SD terlebih dahulu.
+              </p>
+              
+              <p className={`text-base md:text-lg leading-relaxed max-w-3xl mt-3 ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <span className="font-semibold text-yellow-600 dark:text-yellow-400">📏 Perhatikan size file:</span> Jika size kecil (~100-500KB) dan format MP4 tetapi hasilnya MP3, itu adalah bug dari API. Silahkan gunakan tombol download manual di pojok kanan bawah player.
+              </p>
+              
+              <p className={`text-base md:text-lg leading-relaxed max-w-3xl mt-3 ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <span className="font-semibold text-purple-600 dark:text-purple-400">🔄 Solusi sementara jika tetap ingin download video HD:</span> Klik ikon <span className="font-bold px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-md mx-1">⋮</span> di pojok kanan bawah video, lalu pilih <span className="font-bold text-purple-600 dark:text-purple-400">Download</span>.
+              </p>
+              
+              {/* Author signature */}
+              <div className="mt-4 flex items-center justify-center md:justify-start gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  darkMode ? 'bg-purple-400' : 'bg-purple-500'
+                }`}></div>
+                <p className={`text-sm italic ${
+                  darkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  ~ Team Lyora (terus berusaha memperbaiki)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
         
         {/* Hero Section */}
         <div className="max-w-3xl mx-auto text-center mb-16">
@@ -526,28 +778,8 @@ function App() {
                 </div>
               </form>
 
-              {/* Quick Actions */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center space-x-2 text-sm">
-                  <Clock size={14} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
-                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
-                    {recentDownloads.length > 0 ? 'Recent: ' : ''}
-                  </span>
-                  {recentDownloads.map((link, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setUrl(link)}
-                      className={`text-xs px-2 py-1 rounded-lg transition-colors ${
-                        darkMode 
-                          ? 'bg-gray-700 text-slate-300 hover:bg-gray-600' 
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      Video {i + 1}
-                    </button>
-                  ))}
-                </div>
-                
+              {/* Advanced Options */}
+              <div className="flex items-center justify-end mt-4">
                 <button
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className={`text-sm flex items-center space-x-1 transition-colors ${
@@ -561,7 +793,7 @@ function App() {
 
               {/* Advanced Options */}
               {showAdvanced && (
-                <div className={`mt-6 p-4 rounded-xl border animate-slide-down ${
+                <div className={`mt-4 p-4 rounded-xl border animate-slide-down ${
                   darkMode ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-200'
                 }`}>
                   <label className={`block text-sm font-medium mb-3 ${
@@ -726,18 +958,18 @@ function App() {
                   </div>
                 )}
 
-                {/* Download Actions - Tanpa preview nama file */}
+                {/* Download Actions */}
                 <div className="p-6 space-y-3">
                   <button
                     onClick={handleDownloadVideo}
-                    disabled={downloading === 'video'}
+                    disabled={downloadingVideo}
                     className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
                       darkMode
                         ? 'bg-purple-600 text-white hover:bg-purple-700'
                         : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {downloading === 'video' ? (
+                    {downloadingVideo ? (
                       <Loader2 size={20} className="animate-spin" />
                     ) : (
                       <Video size={20} />
@@ -748,14 +980,14 @@ function App() {
                   {videoData.music && (
                     <button
                       onClick={handleDownloadMP3}
-                      disabled={downloading === 'mp3'}
+                      disabled={downloadingMp3}
                       className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
                         darkMode
                           ? 'bg-gray-700 text-white hover:bg-gray-600'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {downloading === 'mp3' ? (
+                      {downloadingMp3 ? (
                         <Loader2 size={20} className="animate-spin" />
                       ) : (
                         <Music size={20} />
@@ -764,7 +996,7 @@ function App() {
                     </button>
                   )}
 
-                  {/* SLIDE DOWNLOAD BUTTON - Pilih slide yang akan didownload */}
+                  {/* SLIDE DOWNLOAD BUTTON */}
                   {videoData.images && videoData.images.length > 0 ? (
                     <div className="space-y-3">
                       <button
@@ -773,14 +1005,14 @@ function App() {
                           setSlideSelection('all');
                           setShowSlideModal(true);
                         }}
-                        disabled={downloading === 'mp3'}
+                        disabled={downloadingSlide}
                         className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
                           darkMode
                             ? 'bg-blue-600 text-white hover:bg-blue-700'
                             : 'bg-blue-500 text-white hover:bg-blue-600'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {downloading === 'mp3' ? (
+                        {downloadingSlide ? (
                           <Loader2 size={20} className="animate-spin" />
                         ) : (
                           <Image size={20} />
@@ -788,7 +1020,6 @@ function App() {
                         <span>Pilih Slide ({videoData.images.length} foto)</span>
                       </button>
                       
-                      {/* Info cara pilih */}
                       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
                         💡 Klik untuk memilih slide (contoh: 1,3,5 atau 1-5)
                       </p>
@@ -815,13 +1046,11 @@ function App() {
         {/* Custom Modal untuk Pilih Slide - Glassmorphism ala iPhone */}
         {showSlideModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop dengan blur ala iOS */}
             <div 
               className="absolute inset-0 bg-black/20 backdrop-blur-md"
               onClick={() => setShowSlideModal(false)}
             ></div>
             
-            {/* Modal Card - Glassmorphism */}
             <div className={`relative w-full max-w-md rounded-3xl shadow-2xl transform transition-all animate-scale-in
               ${darkMode 
                 ? 'bg-gray-900/80 backdrop-blur-xl border border-white/10' 
@@ -839,7 +1068,6 @@ function App() {
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {/* Icon dengan efek glass */}
                     <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center
                       ${darkMode 
                         ? 'bg-blue-500/20 border border-white/10' 
@@ -954,7 +1182,7 @@ function App() {
                   </p>
                 </div>
 
-                {/* Preview slide numbers (opsional) */}
+                {/* Preview slide numbers */}
                 <div className={`flex flex-wrap gap-1 p-2 rounded-xl ${
                   darkMode ? 'bg-white/5' : 'bg-white/30'
                 }`}>
@@ -1180,10 +1408,12 @@ function App() {
                 <a href="/privacy.html" className={`text-sm hover:underline ${
                   darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}>
+                  Privacy
                 </a>
                 <a href="/terms.html" className={`text-sm hover:underline ${
                   darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}>
+                  Terms
                 </a>
               </div>
             </div>
