@@ -1,0 +1,974 @@
+// src/App.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Download, Music, Video, Image, Copy, Loader2, 
+  ChevronDown, Heart, Share2, Clock, Eye, ThumbsUp,
+  MessageCircle, Sparkles, Zap, Shield, Globe, CheckCircle,
+  X, ExternalLink, ChevronRight, Menu, Moon, Sun,
+  ArrowDown, ArrowRight, Play, Pause, Volume2
+} from 'lucide-react';
+
+// Interface untuk data TikTok
+interface TikTokData {
+  title?: string;
+  play?: string;
+  hdplay?: string;
+  music?: string;
+  images?: string[];
+  author?: {
+    unique_id?: string;
+    nickname?: string;
+    avatar?: string;
+  };
+  duration?: number;
+  digg_count?: number;
+  share_count?: number;
+  play_count?: number;
+  comment_count?: number;
+  create_time?: number;
+  region?: string;
+}
+
+function App() {
+  // State management
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState<'video' | 'mp3' | null>(null);
+  const [videoData, setVideoData] = useState<TikTokData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [quality, setQuality] = useState<'sd' | 'hd'>('hd');
+  const [recentDownloads, setRecentDownloads] = useState<string[]>([]);
+  
+  // Refs
+  const resultRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load recent downloads from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('recentDownloads');
+    if (saved) {
+      setRecentDownloads(JSON.parse(saved));
+    }
+  }, []);
+
+  // Scroll to result when data is loaded
+  useEffect(() => {
+    if (videoData && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [videoData]);
+
+  // Auto-hide notifications
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError(null);
+        setSuccess(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
+
+  // Validate TikTok URL
+  const isValidTikTokUrl = (url: string): boolean => {
+    return url.includes('tiktok.com') && url.trim().length > 0;
+  };
+
+  // Format number
+  const formatNumber = (num?: number): string => {
+    if (!num) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
+  // Format date
+  const formatDate = (timestamp?: number): string => {
+    if (!timestamp) return 'Unknown';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('id-ID', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  // Generate random filename
+  const generateFilename = (author?: string): string => {
+    const date = new Date();
+    const random = Math.floor(Math.random() * 10000);
+    const cleanAuthor = author?.replace(/[^a-zA-Z0-9]/g, '') || 'TikTok';
+    return `chisato_${cleanAuthor}_${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}_${random}`;
+  };
+
+  // Paste from clipboard
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUrl(text);
+      if (inputRef.current) {
+        inputRef.current.value = text;
+        inputRef.current.focus();
+      }
+      setSuccess('✅ Link berhasil ditempel!');
+    } catch (err) {
+      // Fallback manual paste
+      const pastedText = prompt('Tempel link TikTok di sini:');
+      if (pastedText) {
+        setUrl(pastedText);
+        if (inputRef.current) {
+          inputRef.current.value = pastedText;
+          inputRef.current.focus();
+        }
+      }
+    }
+  };
+
+  // Clear input
+  const clearInput = () => {
+    setUrl('');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
+    }
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Fetch TikTok data from API
+  const fetchTikTokData = async (url: string): Promise<TikTokData> => {
+    const response = await fetch(`https://tikwm.com/api/?url=${encodeURIComponent(url)}&hd=${quality === 'hd' ? 1 : 0}`);
+    
+    if (!response.ok) {
+      throw new Error('Gagal mengambil data dari server');
+    }
+
+    const data = await response.json();
+    
+    if (data.code !== 0) {
+      throw new Error(data.msg || 'Terjadi kesalahan');
+    }
+
+    return data.data;
+  };
+
+  // Download file helper
+  const downloadFile = async (url: string, filename: string): Promise<void> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Gagal mengunduh file');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+      // Save to recent downloads
+      const newRecent = [url, ...recentDownloads.slice(0, 4)];
+      setRecentDownloads(newRecent);
+      localStorage.setItem('recentDownloads', JSON.stringify(newRecent));
+      
+    } catch (error) {
+      throw new Error('Gagal mengunduh file');
+    }
+  };
+
+  // Handle submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isValidTikTokUrl(url)) {
+      setError('⚠️ Masukkan link TikTok yang valid');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setVideoData(null);
+
+    try {
+      const data = await fetchTikTokData(url);
+      setVideoData(data);
+      setSuccess('✅ Video berhasil ditemukan!');
+    } catch (error) {
+      setError(`❌ ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle download video
+  const handleDownloadVideo = async () => {
+    if (!videoData?.play) return;
+
+    setDownloading('video');
+    setError(null);
+
+    try {
+      const filename = generateFilename(videoData.author?.nickname) + '.mp4';
+      const videoUrl = quality === 'hd' && videoData.hdplay ? videoData.hdplay : videoData.play;
+      await downloadFile(videoUrl, filename);
+      setSuccess('✅ Video berhasil diunduh!');
+    } catch (error) {
+      setError('❌ Gagal mengunduh video');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  // Handle download MP3
+  const handleDownloadMP3 = async () => {
+    if (!videoData?.music) return;
+
+    setDownloading('mp3');
+    setError(null);
+
+    try {
+      const filename = generateFilename(videoData.author?.nickname) + '.mp3';
+      await downloadFile(videoData.music, filename);
+      setSuccess('✅ MP3 berhasil diunduh!');
+    } catch (error) {
+      setError('❌ Gagal mengunduh MP3');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${
+      darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-slate-50 via-white to-slate-50'
+    }`}>
+      
+      {/* Custom Cursor Effect */}
+      <div className="cursor-glow"></div>
+
+      {/* Header */}
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+        darkMode ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-slate-200'
+      }`}>
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className={`absolute inset-0 rounded-xl blur-md transition-opacity ${
+                  darkMode ? 'bg-purple-500/30' : 'bg-purple-200'
+                }`}></div>
+                <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${
+                  darkMode ? 'bg-purple-600' : 'bg-gradient-to-br from-purple-500 to-pink-500'
+                }`}>
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h1 className={`text-xl font-bold ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}>
+                  Chisato<span className="text-purple-500">.</span>
+                </h1>
+                <p className={`text-xs ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  TikTok Downloader
+                </p>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <a href="#" className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}>
+                Home
+              </a>
+              <a href="#" className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}>
+                Features
+              </a>
+              <a href="#" className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}>
+                How to Use
+              </a>
+              <a href="#" className={`text-sm font-medium transition-colors ${
+                darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}>
+                FAQ
+              </a>
+            </nav>
+
+            {/* Actions */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2 rounded-xl transition-colors ${
+                  darkMode 
+                    ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button className={`p-2 rounded-xl transition-colors ${
+                darkMode 
+                  ? 'bg-gray-800 text-slate-300 hover:bg-gray-700' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}>
+                <Heart size={18} />
+              </button>
+              <button className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                darkMode
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
+              }`}>
+                <span>Donate</span>
+                <Heart size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="relative container mx-auto px-6 py-16">
+        
+        {/* Hero Section */}
+        <div className="max-w-3xl mx-auto text-center mb-16">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium mb-6">
+            <Sparkles size={16} />
+            <span>#1 TikTok Downloader 2025 • 100% Gratis</span>
+          </div>
+          
+          <h1 className={`text-5xl md:text-6xl font-bold mb-6 leading-tight ${
+            darkMode ? 'text-white' : 'text-slate-900'
+          }`}>
+            Download TikTok
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
+              Tanpa Watermark
+            </span>
+          </h1>
+          
+          <p className={`text-lg md:text-xl ${
+            darkMode ? 'text-slate-300' : 'text-slate-600'
+          }`}>
+            Video HD, MP3, dan Slideshow • Gratis selamanya • Tanpa ribet
+          </p>
+        </div>
+
+        {/* Main Card */}
+        <div className="max-w-3xl mx-auto">
+          <div className={`relative rounded-3xl shadow-2xl transition-colors ${
+            darkMode ? 'bg-gray-800/90' : 'bg-white'
+          }`}>
+            
+            {/* Decorative Elements */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur opacity-20"></div>
+            
+            <div className="relative p-8">
+              
+              {/* Input Form */}
+              <form onSubmit={handleSubmit}>
+                <div className="space-y-4">
+                  <label className={`block text-sm font-medium ${
+                    darkMode ? 'text-slate-300' : 'text-slate-700'
+                  }`}>
+                    Masukkan Link TikTok
+                  </label>
+                  
+                  <div className="relative">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://www.tiktok.com/@username/video/123456789"
+                      className={`w-full px-6 py-4 pr-36 text-lg rounded-2xl border-2 transition-all outline-none ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-slate-400 focus:border-purple-500'
+                          : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-100'
+                      }`}
+                    />
+                    
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                      {url && (
+                        <button
+                          type="button"
+                          onClick={clearInput}
+                          className={`p-2 rounded-lg transition-colors ${
+                            darkMode 
+                              ? 'hover:bg-gray-600 text-slate-400' 
+                              : 'hover:bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={pasteFromClipboard}
+                        className={`p-2 rounded-lg transition-colors ${
+                          darkMode 
+                            ? 'hover:bg-gray-600 text-slate-400' 
+                            : 'hover:bg-slate-100 text-slate-500'
+                        }`}
+                        title="Tempel link"
+                      >
+                        <Copy size={18} />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className={`px-6 py-2 rounded-xl font-medium transition-all flex items-center space-x-2 ${
+                          darkMode
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                            : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={18} />
+                            <span>Process</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              {/* Quick Actions */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center space-x-2 text-sm">
+                  <Clock size={14} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
+                    {recentDownloads.length > 0 ? 'Recent: ' : ''}
+                  </span>
+                  {recentDownloads.map((link, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setUrl(link)}
+                      className={`text-xs px-2 py-1 rounded-lg transition-colors ${
+                        darkMode 
+                          ? 'bg-gray-700 text-slate-300 hover:bg-gray-600' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Video {i + 1}
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className={`text-sm flex items-center space-x-1 transition-colors ${
+                    darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Advanced</span>
+                  <ChevronDown size={14} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* Advanced Options */}
+              {showAdvanced && (
+                <div className={`mt-6 p-4 rounded-xl border animate-slide-down ${
+                  darkMode ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <label className={`block text-sm font-medium mb-3 ${
+                    darkMode ? 'text-slate-300' : 'text-slate-700'
+                  }`}>
+                    Video Quality
+                  </label>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setQuality('sd')}
+                      className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                        quality === 'sd'
+                          ? darkMode
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                          : darkMode
+                            ? 'bg-gray-600 text-slate-300 hover:bg-gray-500'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:border-purple-300'
+                      }`}
+                    >
+                      Standard (SD)
+                    </button>
+                    <button
+                      onClick={() => setQuality('hd')}
+                      className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                        quality === 'hd'
+                          ? darkMode
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                          : darkMode
+                            ? 'bg-gray-600 text-slate-300 hover:bg-gray-500'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:border-purple-300'
+                      }`}
+                    >
+                      High Quality (HD)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Notifications */}
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl animate-slide-down">
+              <div className="flex items-center space-x-3">
+                <div className="text-red-500">❌</div>
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {success && (
+            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl animate-slide-down">
+              <div className="flex items-center space-x-3">
+                <div className="text-green-500">✅</div>
+                <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Video Result */}
+          {videoData && (
+            <div ref={resultRef} className="mt-8 animate-scale-in">
+              <div className={`rounded-3xl overflow-hidden border transition-colors ${
+                darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-200'
+              }`}>
+                
+                {/* Author Header */}
+                <div className={`p-6 border-b ${
+                  darkMode ? 'border-gray-700' : 'border-slate-100'
+                }`}>
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <img
+                        src={videoData.author?.avatar || `https://ui-avatars.com/api/?name=${videoData.author?.nickname || 'User'}&background=8B5CF6&color=fff&bold=true`}
+                        alt={videoData.author?.nickname}
+                        className="w-14 h-14 rounded-2xl object-cover"
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`font-semibold text-lg ${
+                        darkMode ? 'text-white' : 'text-slate-900'
+                      }`}>
+                        {videoData.author?.nickname || 'TikTok User'}
+                      </h3>
+                      <p className={`text-sm ${
+                        darkMode ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        @{videoData.author?.unique_id || 'username'} • {formatDate(videoData.create_time)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(url)}
+                      className={`p-2 rounded-xl transition-colors ${
+                        darkMode 
+                          ? 'hover:bg-gray-700 text-slate-400' 
+                          : 'hover:bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {copied ? <CheckCircle size={18} className="text-green-500" /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className={`grid grid-cols-4 gap-px ${
+                  darkMode ? 'bg-gray-700' : 'bg-slate-200'
+                }`}>
+                  {[
+                    { icon: Heart, label: 'Likes', value: videoData.digg_count, color: 'text-pink-500' },
+                    { icon: MessageCircle, label: 'Comments', value: videoData.comment_count, color: 'text-blue-500' },
+                    { icon: Share2, label: 'Shares', value: videoData.share_count, color: 'text-green-500' },
+                    { icon: Eye, label: 'Views', value: videoData.play_count, color: 'text-purple-500' }
+                  ].map((stat, i) => (
+                    <div key={i} className={`p-4 text-center ${
+                      darkMode ? 'bg-gray-800' : 'bg-white'
+                    }`}>
+                      <stat.icon size={18} className={`mx-auto mb-1 ${stat.color}`} />
+                      <div className={`font-semibold ${
+                        darkMode ? 'text-white' : 'text-slate-900'
+                      }`}>
+                        {formatNumber(stat.value)}
+                      </div>
+                      <div className={`text-xs ${
+                        darkMode ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        {stat.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Video Player */}
+                <div className="relative bg-black aspect-video">
+                  <video
+                    src={videoData.play}
+                    controls
+                    className="w-full h-full object-contain"
+                    poster={videoData.play}
+                  />
+                  
+                  {/* Watermark Badge */}
+                  <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-lg">
+                    <span className="text-xs font-medium text-white">
+                      {quality === 'hd' && videoData.hdplay ? 'HD Available' : 'SD'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Caption */}
+                {videoData.title && (
+                  <div className={`p-6 border-b ${
+                    darkMode ? 'border-gray-700' : 'border-slate-100'
+                  }`}>
+                    <p className={`text-sm leading-relaxed ${
+                      darkMode ? 'text-slate-300' : 'text-slate-600'
+                    }`}>
+                      {videoData.title}
+                    </p>
+                  </div>
+                )}
+
+                {/* Download Actions */}
+                <div className="p-6 space-y-3">
+                  <button
+                    onClick={handleDownloadVideo}
+                    disabled={downloading === 'video'}
+                    className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-between group ${
+                      darkMode
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      {downloading === 'video' ? (
+                        <Loader2 size={20} className="animate-spin" />
+                      ) : (
+                        <Video size={20} />
+                      )}
+                      <span>Download Video {quality === 'hd' ? 'HD' : 'SD'}</span>
+                    </span>
+                    <span className="flex items-center space-x-2 text-sm opacity-75">
+                      <span>{generateFilename(videoData.author?.nickname)}.mp4</span>
+                      <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </button>
+
+                  {videoData.music && (
+                    <button
+                      onClick={handleDownloadMP3}
+                      disabled={downloading === 'mp3'}
+                      className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-between group ${
+                        darkMode
+                          ? 'bg-gray-700 text-white hover:bg-gray-600'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <span className="flex items-center space-x-2">
+                        {downloading === 'mp3' ? (
+                          <Loader2 size={20} className="animate-spin" />
+                        ) : (
+                          <Music size={20} />
+                        )}
+                        <span>Download MP3</span>
+                      </span>
+                      <span className="flex items-center space-x-2 text-sm opacity-75">
+                        <span>{generateFilename(videoData.author?.nickname)}.mp3</span>
+                        <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Features Grid */}
+        <div className="max-w-5xl mx-auto mt-20">
+          <h2 className={`text-2xl font-bold text-center mb-12 ${
+            darkMode ? 'text-white' : 'text-slate-900'
+          }`}>
+            Kenapa Pilih Chisato?
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Zap,
+                title: 'Super Cepat',
+                desc: 'Proses dalam hitungan detik, langsung download',
+                color: 'purple'
+              },
+              {
+                icon: Shield,
+                title: '100% Aman',
+                desc: 'Tanpa virus, tanpa iklan, tanpa ribet',
+                color: 'pink'
+              },
+              {
+                icon: Globe,
+                title: 'Gratis Selamanya',
+                desc: 'Download unlimited, tanpa biaya',
+                color: 'orange'
+              }
+            ].map((feature, i) => (
+              <div key={i} className={`group relative p-6 rounded-2xl transition-all hover:scale-105 ${
+                darkMode ? 'bg-gray-800' : 'bg-white shadow-lg'
+              }`}>
+                <div className={`w-12 h-12 rounded-xl bg-${feature.color}-100 dark:bg-${feature.color}-900/30 flex items-center justify-center mb-4`}>
+                  <feature.icon className={`text-${feature.color}-500`} size={24} />
+                </div>
+                <h3 className={`font-semibold mb-2 ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {feature.title}
+                </h3>
+                <p className={`text-sm ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  {feature.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* How to Use */}
+        <div className="max-w-4xl mx-auto mt-20">
+          <h2 className={`text-2xl font-bold text-center mb-12 ${
+            darkMode ? 'text-white' : 'text-slate-900'
+          }`}>
+            Cara Pakai (Gampang Banget!)
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { step: '1', title: 'Copy Link', desc: 'Buka TikTok, copy link video' },
+              { step: '2', title: 'Paste & Process', desc: 'Tempel link, klik tombol Process' },
+              { step: '3', title: 'Download', desc: 'Pilih kualitas, klik Download' }
+            ].map((item, i) => (
+              <div key={i} className="relative">
+                <div className={`absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-20`}></div>
+                <div className={`relative p-6 rounded-2xl ${
+                  darkMode ? 'bg-gray-800' : 'bg-white'
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 font-bold text-purple-600 dark:text-purple-400">
+                    {item.step}
+                  </div>
+                  <h3 className={`font-semibold mb-2 ${
+                    darkMode ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    {item.title}
+                  </h3>
+                  <p className={`text-sm ${
+                    darkMode ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="max-w-3xl mx-auto mt-20">
+          <h2 className={`text-2xl font-bold text-center mb-12 ${
+            darkMode ? 'text-white' : 'text-slate-900'
+          }`}>
+            Frequently Asked Questions
+          </h2>
+          
+          <div className="space-y-4">
+            {[
+              {
+                q: 'Apakah ini gratis?',
+                a: 'Ya, 100% gratis selamanya! Tidak ada biaya tersembunyi.'
+              },
+              {
+                q: 'Bisa download video tanpa watermark?',
+                a: 'Bisa! Semua video yang didownload tanpa watermark TikTok.'
+              },
+              {
+                q: 'Bisa download di HP?',
+                a: 'Bisa! Chisato bekerja di semua device: HP, tablet, laptop.'
+              }
+            ].map((faq, i) => (
+              <div key={i} className={`p-6 rounded-2xl border transition-colors ${
+                darkMode 
+                  ? 'bg-gray-800 border-gray-700 hover:border-purple-600' 
+                  : 'bg-white border-slate-200 hover:border-purple-300'
+              }`}>
+                <h3 className={`font-semibold mb-2 ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {faq.q}
+                </h3>
+                <p className={`text-sm ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  {faq.a}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className={`mt-20 border-t transition-colors ${
+        darkMode ? 'border-gray-800 bg-gray-900' : 'border-slate-200 bg-white'
+      }`}>
+        <div className="container mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center`}>
+                  <Zap className="w-4 h-4 text-white" />
+                </div>
+                <span className={`font-bold ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}>
+                  Chisato
+                </span>
+              </div>
+              <p className={`text-sm mb-4 ${
+                darkMode ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Download TikTok video tanpa watermark dengan mudah dan cepat. Gratis selamanya!
+              </p>
+              <div className="flex space-x-4">
+                <a href="#" className={`text-sm hover:underline ${
+                  darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                }`}>
+                
+                </a>
+                <a href="#" className={`text-sm hover:underline ${
+                  darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                }`}>
+    
+                </a>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className={`font-semibold mb-4 ${
+                darkMode ? 'text-white' : 'text-slate-900'
+              }`}>
+                Features
+              </h4>
+              <ul className="space-y-2">
+                {['Video HD', 'MP3 Audio', 'Slide/Foto', 'No Watermark'].map((item, i) => (
+                  <li key={i}>
+                    <a href="#" className={`text-sm transition-colors ${
+                      darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                    }`}>
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+          </div>
+          
+          <div className={`mt-12 pt-8 border-t text-center text-sm ${
+            darkMode ? 'border-gray-800 text-slate-400' : 'border-slate-200 text-slate-500'
+          }`}>
+            <p>© 2025 Chisato TikTok Downloader</p>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+        @keyframes scale-in {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 2s infinite;
+        }
+        .cursor-glow {
+          pointer-events: none;
+          position: fixed;
+          width: 400px;
+          height: 400px;
+          background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          transition: transform 0.1s;
+          z-index: 9999;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default App;
