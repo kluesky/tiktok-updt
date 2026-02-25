@@ -118,7 +118,7 @@ function App() {
         inputRef.current.value = text;
         inputRef.current.focus();
       }
-      setSuccess('✅ Link berhasil ditempel!');
+      setSuccess('Link berhasil ditempel!');
     } catch (err) {
       // Fallback manual paste
       const pastedText = prompt('Tempel link TikTok di sini:');
