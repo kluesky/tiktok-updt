@@ -1,11 +1,10 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Download, Music, Video, Image, Copy, Loader2, 
-  ChevronDown, Heart, Share2, Clock, Eye, ThumbsUp,
+  Music, Video, Copy, Loader2, 
+  ChevronDown, Heart, Share2, Clock, Eye,
   MessageCircle, Sparkles, Zap, Shield, Globe, CheckCircle,
-  X, ExternalLink, ChevronRight, Menu, Moon, Sun,
-  ArrowDown, ArrowRight, Play, Pause, Volume2
+  X, ChevronRight, Moon, Sun
 } from 'lucide-react';
 
 // Interface untuk data TikTok
@@ -256,9 +255,6 @@ function App() {
       darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-slate-50 via-white to-slate-50'
     }`}>
       
-      {/* Custom Cursor Effect */}
-      <div className="cursor-glow"></div>
-
       {/* Header */}
       <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
         darkMode ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-slate-200'
@@ -293,22 +289,22 @@ function App() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#" className={`text-sm font-medium transition-colors ${
+              <a href="/" className={`text-sm font-medium transition-colors ${
                 darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}>
                 Home
               </a>
-              <a href="#" className={`text-sm font-medium transition-colors ${
+              <a href="#features" className={`text-sm font-medium transition-colors ${
                 darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}>
                 Features
               </a>
-              <a href="#" className={`text-sm font-medium transition-colors ${
+              <a href="#howto" className={`text-sm font-medium transition-colors ${
                 darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}>
                 How to Use
               </a>
-              <a href="#" className={`text-sm font-medium transition-colors ${
+              <a href="#faq" className={`text-sm font-medium transition-colors ${
                 darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}>
                 FAQ
@@ -333,14 +329,6 @@ function App() {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}>
                 <Heart size={18} />
-              </button>
-              <button className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
-                darkMode
-                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
-              }`}>
-                <span>Donate</span>
-                <Heart size={16} />
               </button>
             </div>
           </div>
@@ -715,7 +703,7 @@ function App() {
         </div>
 
         {/* Features Grid */}
-        <div className="max-w-5xl mx-auto mt-20">
+        <div id="features" className="max-w-5xl mx-auto mt-20">
           <h2 className={`text-2xl font-bold text-center mb-12 ${
             darkMode ? 'text-white' : 'text-slate-900'
           }`}>
@@ -765,7 +753,7 @@ function App() {
         </div>
 
         {/* How to Use */}
-        <div className="max-w-4xl mx-auto mt-20">
+        <div id="howto" className="max-w-4xl mx-auto mt-20">
           <h2 className={`text-2xl font-bold text-center mb-12 ${
             darkMode ? 'text-white' : 'text-slate-900'
           }`}>
@@ -803,7 +791,7 @@ function App() {
         </div>
 
         {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto mt-20">
+        <div id="faq" className="max-w-3xl mx-auto mt-20">
           <h2 className={`text-2xl font-bold text-center mb-12 ${
             darkMode ? 'text-white' : 'text-slate-900'
           }`}>
@@ -869,15 +857,13 @@ function App() {
                 Download TikTok video tanpa watermark dengan mudah dan cepat. Gratis selamanya!
               </p>
               <div className="flex space-x-4">
-                <a href="#" className={`text-sm hover:underline ${
+                <a href="/privacy.html" className={`text-sm hover:underline ${
                   darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}>
-                
                 </a>
-                <a href="#" className={`text-sm hover:underline ${
+                <a href="/terms.html" className={`text-sm hover:underline ${
                   darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
                 }`}>
-    
                 </a>
               </div>
             </div>
@@ -900,73 +886,15 @@ function App() {
                 ))}
               </ul>
             </div>
-            
           </div>
           
           <div className={`mt-12 pt-8 border-t text-center text-sm ${
             darkMode ? 'border-gray-800 text-slate-400' : 'border-slate-200 text-slate-500'
           }`}>
-            <p>© 2025 Chisato TikTok Downloader</p>
+            <p>© 2025 Chisato TikTok Downloader. All rights reserved.</p>
           </div>
         </div>
       </footer>
-
-      <style>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.6s ease-out;
-        }
-        @keyframes scale-in {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.3s ease-out;
-        }
-        @keyframes slide-down {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-down {
-          animation: slide-down 0.3s ease-out;
-        }
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-        .animate-pulse-glow {
-          animation: pulse-glow 2s infinite;
-        }
-        .cursor-glow {
-          pointer-events: none;
-          position: fixed;
-          width: 400px;
-          height: 400px;
-          background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          transition: transform 0.1s;
-          z-index: 9999;
-        }
-      `}</style>
     </div>
   );
 }
