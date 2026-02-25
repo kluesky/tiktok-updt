@@ -96,7 +96,7 @@ function App() {
     });
   };
 
-  // Generate random filename
+  // Generate random filename (masih dipakai untuk download)
   const generateFilename = (author?: string): string => {
     const date = new Date();
     const random = Math.floor(Math.random() * 10000);
@@ -113,7 +113,7 @@ function App() {
         inputRef.current.value = text;
         inputRef.current.focus();
       }
-      setSuccess('✅ Link berhasil ditempel!');
+      setSuccess('Link berhasil ditempel!');
     } catch (err) {
       // Fallback manual paste
       const pastedText = prompt('Tempel link TikTok di sini:');
@@ -647,53 +647,41 @@ function App() {
                   </div>
                 )}
 
-                {/* Download Actions */}
+                {/* Download Actions - Tanpa preview nama file */}
                 <div className="p-6 space-y-3">
                   <button
                     onClick={handleDownloadVideo}
                     disabled={downloading === 'video'}
-                    className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-between group ${
+                    className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
                       darkMode
                         ? 'bg-purple-600 text-white hover:bg-purple-700'
                         : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/25'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <span className="flex items-center space-x-2">
-                      {downloading === 'video' ? (
-                        <Loader2 size={20} className="animate-spin" />
-                      ) : (
-                        <Video size={20} />
-                      )}
-                      <span>Download Video {quality === 'hd' ? 'HD' : 'SD'}</span>
-                    </span>
-                    <span className="flex items-center space-x-2 text-sm opacity-75">
-                      <span>{generateFilename(videoData.author?.nickname)}.mp4</span>
-                      <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </span>
+                    {downloading === 'video' ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <Video size={20} />
+                    )}
+                    <span>Download Video {quality === 'hd' ? 'HD' : 'SD'}</span>
                   </button>
 
                   {videoData.music && (
                     <button
                       onClick={handleDownloadMP3}
                       disabled={downloading === 'mp3'}
-                      className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-between group ${
+                      className={`w-full py-4 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 group ${
                         darkMode
                           ? 'bg-gray-700 text-white hover:bg-gray-600'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <span className="flex items-center space-x-2">
-                        {downloading === 'mp3' ? (
-                          <Loader2 size={20} className="animate-spin" />
-                        ) : (
-                          <Music size={20} />
-                        )}
-                        <span>Download MP3</span>
-                      </span>
-                      <span className="flex items-center space-x-2 text-sm opacity-75">
-                        <span>{generateFilename(videoData.author?.nickname)}.mp3</span>
-                        <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                      </span>
+                      {downloading === 'mp3' ? (
+                        <Loader2 size={20} className="animate-spin" />
+                      ) : (
+                        <Music size={20} />
+                      )}
+                      <span>Download MP3</span>
                     </button>
                   )}
                 </div>
@@ -891,7 +879,7 @@ function App() {
           <div className={`mt-12 pt-8 border-t text-center text-sm ${
             darkMode ? 'border-gray-800 text-slate-400' : 'border-slate-200 text-slate-500'
           }`}>
-            <p>© 2025 Chisato TikTok Downloader. All rights reserved.</p>
+            <p>© 2025 Chisato TikTok Downloader Easy And No ADS Love u all</p>
           </div>
         </div>
       </footer>
